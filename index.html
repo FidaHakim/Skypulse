@@ -208,7 +208,7 @@
 
             <div>
                 <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
-                    <i data-lucide="calendar" class="w-5 h-5"></i> 30-Day Extended Forecast
+                    <i data-lucide="calendar" class="w-5 h-5"></i> 15-Day Extended Forecast
                 </h3>
                 <div id="forecastContainer" class="grid grid-cols-[repeat(auto-fit,minmax(110px,1fr))] gap-3">
                 </div>
@@ -331,32 +331,27 @@
             else { uvRiskElement.innerText = "High"; uvRiskElement.className = "text-xs font-semibold px-2.5 py-1 rounded-md bg-red-500/30 text-red-200"; }
             
             document.getElementById('weatherCondition').innerText = conditionMeta.label;
-            updateIconElement('mainWeatherIcon', conditionMeta.icon);
+            document.getElementById('mainWeatherIcon').setAttribute('data-lucide', conditionMeta.icon);
             generateWeatherStatusSummary(current, conditionMeta.label);
             generateWeatherSuggestions(current);
             
             const forecastContainer = document.getElementById('forecastContainer');
             forecastContainer.innerHTML = '';
-            for (let i = 1; i < 31; i++) {
-                let dataIndex = i;
-                if (dataIndex >= daily.time.length) {
-                    dataIndex = 1 + ((i - 1) % (daily.time.length - 1 || 1));
-                }
-                const dayCode = daily.weather_code[dataIndex];
+            // Display next 15 days
+            for (let i = 1; i < daily.time.length; i++) {
+                const dayCode = daily.weather_code[i];
                 const dayMeta = interpretWeatherCode(dayCode, 1);
-                
-                const targetDate = new Date(daily.time[0]);
-                targetDate.setDate(targetDate.getDate() + i);
+                const targetDate = new Date(daily.time[i]);
                 const dayName = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
                 
-                const maxT = Math.round(daily.temperature_2m_max[dataIndex]);
-                const minT = Math.round(daily.temperature_2m_min[dataIndex]);
+                const maxT = Math.round(daily.temperature_2m_max[i]);
+                const minT = Math.round(daily.temperature_2m_min[i]);
                 const dayCard = document.createElement('div');
                 dayCard.className = "bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center text-center min-w-0";
                 dayCard.innerHTML = `
                     <p class="text-[11px] font-bold uppercase tracking-wider text-white/70">${dayName}</p>
                     <div class="my-2">
-                        <i id="forecastIcon-${i}" data-lucide="${dayMeta.icon}" class="w-7 h-7 text-white mx-auto"></i>
+                        <i data-lucide="${dayMeta.icon}" class="w-7 h-7 text-white mx-auto"></i>
                     </div>
                     <p class="text-[11px] font-medium truncate max-w-full text-white/80">${dayMeta.label}</p>
                     <div class="flex items-center justify-center gap-2 mt-2 text-xs font-bold">
@@ -365,11 +360,11 @@
                     </div>
                 `;
                 forecastContainer.appendChild(dayCard);
-                updateIconElement(`forecastIcon-${i}`, dayMeta.icon);
             }
             aiResponseBox.classList.add('hidden');
             aiResponseBox.innerHTML = '';
             aiInput.value = '';
+            lucide.createIcons();
             showLoading(false);
         }
 
@@ -391,32 +386,18 @@
         function generateWeatherSuggestions(current) {
             const suggestionEl = document.getElementById('weatherSuggestions');
             let suggestions = [];
-
             const tempC = isMetric ? current.temperature_2m : (current.temperature_2m - 32) * 5/9;
-
-            if (tempC < 10) {
-                suggestions.push("It's chilly, dress warmly in layers.");
-            } else if (tempC > 27) {
-                suggestions.push("It's quite warm, remember to stay hydrated and wear light clothing.");
-            } else {
-                suggestions.push("The temperature is mild and comfortable.");
-            }
-
+            if (tempC < 10) suggestions.push("It's chilly, dress warmly in layers.");
+            else if (tempC > 27) suggestions.push("It's quite warm, remember to stay hydrated and wear light clothing.");
+            else suggestions.push("The temperature is mild and comfortable.");
             if (current.precipitation > 0 || [51, 53, 55, 61, 63, 65, 80, 81, 95, 96, 99].includes(current.weather_code)) {
                 suggestions.push("Expect wet conditions; grabbing an umbrella or raincoat is recommended.");
             } else if (current.weather_code === 0 && current.is_day === 1) {
                 suggestions.push("Clear skies make it a great time to be outdoors.");
             }
-
             const windKmh = isMetric ? current.wind_speed_10m : current.wind_speed_10m * 1.60934;
-            if (windKmh > 25) {
-                suggestions.push("It's quite windy, so secure loose items and a windbreaker might help.");
-            }
-
-            if (current.uv_index >= 6 && current.is_day === 1) {
-                suggestions.push("UV index is high—don't forget your sunscreen and sunglasses!");
-            }
-
+            if (windKmh > 25) suggestions.push("It's quite windy, so secure loose items and a windbreaker might help.");
+            if (current.uv_index >= 6 && current.is_day === 1) suggestions.push("UV index is high—don't forget your sunscreen and sunglasses!");
             suggestionEl.innerText = suggestions.join(" ");
         }
 
@@ -458,11 +439,6 @@
             if ([71, 73, 75, 85].includes(code)) return { label: "Snow", icon: "snowflake", bgDay: "weather-snow", bgNight: "weather-snow" };
             if ([95, 96, 99].includes(code)) return { label: "Thunderstorm", icon: "cloud-lightning", bgDay: "weather-storm", bgNight: "weather-storm" };
             return { label: "Mixed", icon: "cloud", bgDay: "weather-clouds-day", bgNight: "weather-clouds-night" };
-        }
-
-        function updateIconElement(id, icon) {
-            const el = document.getElementById(id);
-            if(el) { el.setAttribute('data-lucide', icon); lucide.createIcons(); }
         }
 
         function showLoading(b) { loader.classList.toggle('hidden', !b); weatherContent.classList.toggle('hidden', b); }
